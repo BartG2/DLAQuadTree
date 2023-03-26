@@ -22,8 +22,9 @@ bool Contains(const Rectangle& r1, const Rectangle& r2);
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
 
-constexpr int screenWidth = 2560, screenHeight = 1440, numThreads = 2, maxTreeDepth = 5;
-const float collisionThreshold = 1.1f, minimumStickDistance = 0.9f;
+constexpr int screenWidth = 2560, screenHeight = 1440, numThreads = 2;
+int maxTreeDepth = 5;
+const float collisionThreshold = 1.1f, minimumStickDistance = 1.0f;
 
 std::mt19937 rng = CreateGeneratorWithTimeSeed();
 
@@ -318,6 +319,7 @@ std::vector<Particle> collisionCheck(QuadTree qt){
             }
             else{
                 p.color = RED;
+                p.pos.x = screenWidth;
                 failedCollisions.push_back(p);
             }
         }
@@ -401,7 +403,9 @@ int main(){
         }
         EndDrawing();
 
-        
+        if(maxTreeDepth == 5 and aggregateParticles.size() > 10000){
+            maxTreeDepth = 6;
+        }
 
     }
 
