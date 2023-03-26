@@ -32,18 +32,18 @@ std::mt19937 rng = CreateGeneratorWithTimeSeed();
 class Particle {
 public:
     Vector2 pos;
-    Vector2 velocity;
-    Vector2 acceleration;
+    Vector2 v;
+    Vector2 a;
     Color color;
     bool isStuck;
 
-    Particle(Vector2 position, Color col)
-        :pos(position), color(col), isStuck(false)
-    {}
-
-    Particle()
-        :pos({ screenWidth - 10, screenHeight - 10 }), color(WHITE), isStuck(false)
-    {}
+    Particle(Vector2 position, Color col, Vector2 velocity = {0, 0}, Vector2 acceleration = {0, 0}){
+        pos = position;
+        v = velocity;
+        a = acceleration;
+        color = col;
+        isStuck = false;
+    }
 
     void RandomWalk(float stepSize, int numSteps) {
         if(!isStuck){
