@@ -25,6 +25,7 @@ bool Contains(const Rectangle& r1, const Rectangle& r2);
 constexpr int screenWidth = 2560, screenHeight = 1440, numThreads = 2;
 int maxTreeDepth = 5;
 const float collisionThreshold = 1.1f, minimumStickDistance = 1.0f;
+float stickingProbability = 1.0f;
 
 std::mt19937 rng = CreateGeneratorWithTimeSeed();
 
@@ -314,7 +315,7 @@ std::vector<Particle> collisionCheck(QuadTree qt){
             p.color = WHITE;
             float dist = vector2distance(p.pos, aggregateParticle.pos);
 
-            if(dist >= minimumStickDistance){
+            if(dist >= minimumStickDistance and RandomFloat(0, 1, rng) <= stickingProbability){
                 aggregateParticles.push_back(p);
             }
             else{
@@ -405,6 +406,11 @@ int main(){
 
         if(maxTreeDepth == 5 and aggregateParticles.size() > 10000){
             maxTreeDepth = 6;
+        }
+
+        if(frameCount % 5000 == 0){
+            stickingProbability -= 0.01;
+            std::cout << stickingProbability << std::endl;
         }
 
     }
