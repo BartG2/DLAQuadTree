@@ -22,7 +22,7 @@ bool Contains(const Rectangle& r1, const Rectangle& r2);
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
 
-constexpr int screenWidth = 2560, screenHeight = 1440, numThreads = 2, maxTreeDepth = 6;
+constexpr int screenWidth = 2560, screenHeight = 1440, numThreads = 2, maxTreeDepth = 5;
 const float collisionThreshold = 3.0f;
 
 const Vector2 particleSize = {2,2};
@@ -155,7 +155,7 @@ public:
         }
 
         //didn't fit in children, so must go here
-        particles.push_back(newParticle);
+        particles.emplace_back(newParticle);
     }
 
     std::list<Particle> search(Vector2 center, float radius, bool removeSearched){
@@ -203,7 +203,6 @@ public:
 
         return result;
     }
-
 
     int size() const{
         int count = particles.size();
@@ -329,7 +328,6 @@ void DrawParticlesVector(const std::vector<Particle>& particles){
 }
 
 void RandomWalkAll(std::vector<Particle>& particles){
-    
     for(auto& p : particles){
         p.RandomWalk(1, 1);
     }
@@ -337,12 +335,13 @@ void RandomWalkAll(std::vector<Particle>& particles){
 
 void ConcentricCircles(int frameCount){
     if(frameCount / 5 < screenHeight / 2 && frameCount % 500 == 0){
-        std::vector<Particle> fp2 = CreateCircle(100 * (1 + frameCount / 50),RED,{screenWidth/2.0, screenHeight/2.0}, 50 + frameCount / 5);
+        std::vector<Particle> fp2 = CreateCircle(200 * (1 + frameCount / 50),RED,{screenWidth/2.0, screenHeight/2.0}, 50 + frameCount / 5);
         freeParticles.insert(freeParticles.end(), fp2.begin(), fp2.end());
     }
 }
 
 QuadTree initializeQT(){
+    //Timer t;
     QuadTree qt(0, Rectangle{0, 0, screenWidth, screenHeight});
 
     for(const auto& p : freeParticles){
@@ -375,7 +374,6 @@ int main(){
             DrawParticlesVector(aggregateParticles);
 
             qt.draw();
-
         }
         EndDrawing();
 
