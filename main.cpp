@@ -180,7 +180,7 @@ public:
 
     void draw() const{
         for(const auto& particle : particles){
-            DrawPixelV(particle.pos, RED);
+            DrawPixelV(particle.pos, particle.color);
         }
 
         for(int i = 0; i < 4; i++){
@@ -291,7 +291,9 @@ void ConcentricCircles(int frameCount){
 QuadTree initializeQT(){
     QuadTree qt(0, Rectangle{0, 0, screenWidth, screenHeight});
 
-    qt.insert(freeParticles[0]);
+    for(const auto& p : freeParticles){
+        qt.insert(p);
+    }
 
     return qt;
 }
