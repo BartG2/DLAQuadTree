@@ -23,7 +23,7 @@ bool Contains(const Rectangle& r1, const Rectangle& r2);
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
 
 constexpr int screenWidth = 2560, screenHeight = 1440, numThreads = 2;
-int maxTreeDepth = 5;
+int maxTreeDepth = 6, minParticlesToDivide = 500;
 const float collisionThreshold = 1.1f, minimumStickDistance = 1.0f;
 float stickingProbability = 1.0f;
 
@@ -231,7 +231,7 @@ public:
             DrawPixelV(particle.pos, particle.color);
         }
 
-        //DrawRectangleLinesEx(currentSize, 0.7, GREEN);
+        DrawRectangleLinesEx(currentSize, 0.7, GREEN);
 
         for(int i = 0; i < 4; i++){
             if(children[i]){
@@ -339,7 +339,7 @@ void Initialize(){
     const Color startingColor = RED;
     const Vector2 startingCenter = {screenWidth / 2, screenHeight / 2};
 
-    freeParticles = CreateCircle(startingNumParticles, startingColor, startingCenter, startingRadius);
+    //freeParticles = CreateCircle(startingNumParticles, startingColor, startingCenter, startingRadius);
     aggregateParticles = {1, Particle({screenWidth / 2.0, screenHeight / 2.0}, WHITE)};
 }
 
@@ -363,7 +363,7 @@ void ConcentricCircles(int frameCount){
 }
 
 QuadTree initializeQT(){
-    //Timer t;
+    Timer t;
     QuadTree qt(0, Rectangle{0, 0, screenWidth, screenHeight});
 
     for(const auto& p : freeParticles){
@@ -373,6 +373,16 @@ QuadTree initializeQT(){
     return qt;
 }
 
+float findMaxAggregateRadius(){
+    float maxAggregateRadius = 0;
+    for(auto& p : aggregateParticles){
+        if(vector2distance(p.pos, {screenWidth/2.0f, screenHeight/2.0f}) > maxAggregateRadius){
+            maxAggregateRadius = vector2distance(p.pos, {screenWidth/2.0f, screenHeight/2.0f});
+        }
+    }
+    return maxAggregateRadius;
+}
+
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
 
 int main(){
@@ -380,14 +390,7 @@ int main(){
     
     for(int frameCount = 0; !WindowShouldClose(); frameCount++){
 
-        float maxAggregateRadius = 0;
-        for(auto& p : aggregateParticles){
-            if(vector2distance(p.pos, {screenWidth/2.0f, screenHeight/2.0f}) > maxAggregateRadius){
-                maxAggregateRadius = vector2distance(p.pos, {screenWidth/2.0f, screenHeight/2.0f});
-            }
-        }
-
-        //ConcentricCircles(frameCount);
+        ConcentricCircles(frameCount);
         RandomWalkAll(freeParticles);
 
         QuadTree qt = initializeQT();
@@ -403,11 +406,11 @@ int main(){
         {
             ClearBackground(BLACK);
             DrawFPS(10,10);
-            DrawText(TextFormat("%d freeparticles, and %d aggregate particles\t %d total particles\tMAR = %d", freeParticles.size(), aggregateParticles.size(), freeParticles.size() + aggregateParticles.size(), maxAggregateRadius), 10, 30, 10, GREEN);
+            DrawText(TextFormat("%d freeparticles, and %d aggregate particles\t %d total particles", freeParticles.size(), aggregateParticles.size(), freeParticles.size() + aggregateParticles.size()), 10, 30, 10, GREEN);
 
             DrawParticlesVector(aggregateParticles);
             qt.draw();
-            DrawCircleLines(screenWidth / 2.0f, screenHeight / 2.0f, maxAggregateRadius, ORANGE);
+            //DrawCircleLines(screenWidth / 2.0f, screenHeight / 2.0f, maxAggregateRadius, ORANGE);
         }
         EndDrawing();
 
