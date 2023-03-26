@@ -32,11 +32,13 @@ std::mt19937 rng = CreateGeneratorWithTimeSeed();
 class Particle {
 public:
     Vector2 pos;
+    Vector2 velocity;
+    Vector2 acceleration;
     Color color;
     bool isStuck;
 
-    Particle(float x, float y, Color col)
-        :pos({x,y}), color(col), isStuck(false)
+    Particle(Vector2 position, Color col)
+        :pos(position), color(col), isStuck(false)
     {}
 
     Particle()
@@ -264,7 +266,7 @@ std::vector<Particle> CreateCircle(int numParticles, Color col, Vector2 center, 
     for(float i = 0; i < 360; i += degreeIncrement){
         float x = radius * cos(i) + center.x;
         float y = radius * sin(i) + center.y;
-        Particle p(x,y,col);
+        Particle p({x, y}, col);
         particles.push_back(p);
     }
 
@@ -320,7 +322,7 @@ void Initialize(){
     const Vector2 startingCenter = {screenWidth / 2, screenHeight / 2};
 
     freeParticles = CreateCircle(startingNumParticles, startingColor, startingCenter, startingRadius);
-    aggregateParticles = {1, Particle(screenWidth / 2.0, screenHeight / 2.0, WHITE)};
+    aggregateParticles = {1, Particle({screenWidth / 2.0, screenHeight / 2.0}, WHITE)};
 }
 
 void DrawParticlesVector(const std::vector<Particle>& particles){
