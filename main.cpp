@@ -311,13 +311,14 @@ void collisionCheck(QuadTree qt){
         for(auto& p : result){
             p.color = WHITE;
             float dist = vector2distance(p.pos, aggregateParticle.pos);
+
             if(dist >= minimumStickDistance){
                 aggregateParticles.push_back(p);
             }
             else{
-                p.color = RED;
+                p.color = YELLOW;
                 freeParticles.push_back(p);
-                freeParticles[freeParticles.size()].RandomWalk(1, 1);
+                freeParticles[freeParticles.size()].RandomWalk(2, 1);
             }
             //leaks particles
         }
@@ -346,7 +347,7 @@ void DrawParticlesVector(const std::vector<Particle>& particles){
 
 void RandomWalkAll(std::vector<Particle>& particles){
     for(auto& p : particles){
-        p.RandomWalk(1, 1);
+        p.RandomWalk(2, 1);
     }
 }
 
@@ -387,7 +388,7 @@ int main(){
         {
             ClearBackground(BLACK);
             DrawFPS(10,10);
-            DrawText(TextFormat("%d freeparticles, and %d aggregate particles", freeParticles.size(), aggregateParticles.size()), 10, 30, 10, GREEN);
+            DrawText(TextFormat("%d freeparticles, and %d aggregate particles\t %d total particles", freeParticles.size(), aggregateParticles.size(), freeParticles.size() + aggregateParticles.size()), 10, 30, 10, GREEN);
 
             DrawParticlesVector(aggregateParticles);
 
