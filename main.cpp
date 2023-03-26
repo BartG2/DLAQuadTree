@@ -380,6 +380,13 @@ int main(){
     
     for(int frameCount = 0; !WindowShouldClose(); frameCount++){
 
+        float maxAggregateRadius = 0;
+        for(auto& p : aggregateParticles){
+            if(vector2distance(p.pos, {screenWidth/2.0f, screenHeight/2.0f}) > maxAggregateRadius){
+                maxAggregateRadius = vector2distance(p.pos, {screenWidth/2.0f, screenHeight/2.0f});
+            }
+        }
+
         //ConcentricCircles(frameCount);
         RandomWalkAll(freeParticles);
 
@@ -396,11 +403,11 @@ int main(){
         {
             ClearBackground(BLACK);
             DrawFPS(10,10);
-            DrawText(TextFormat("%d freeparticles, and %d aggregate particles\t %d total particles", freeParticles.size(), aggregateParticles.size(), freeParticles.size() + aggregateParticles.size()), 10, 30, 10, GREEN);
+            DrawText(TextFormat("%d freeparticles, and %d aggregate particles\t %d total particles\tMAR = %d", freeParticles.size(), aggregateParticles.size(), freeParticles.size() + aggregateParticles.size(), maxAggregateRadius), 10, 30, 10, GREEN);
 
             DrawParticlesVector(aggregateParticles);
-
             qt.draw();
+            DrawCircleLines(screenWidth / 2.0f, screenHeight / 2.0f, maxAggregateRadius, ORANGE);
         }
         EndDrawing();
 
