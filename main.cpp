@@ -302,8 +302,9 @@ void primitiveCollisionCheck(){
     }
 }
 
-void collisionCheck(QuadTree qt){
+std::vector<Particle> collisionCheck(QuadTree qt){
     std::list<Particle> result;
+    std::vector<Particle> failedCollisions;
 
     for(auto& aggregateParticle : aggregateParticles){
         result = qt.search(aggregateParticle.pos, collisionThreshold, true);
@@ -316,13 +317,13 @@ void collisionCheck(QuadTree qt){
                 aggregateParticles.push_back(p);
             }
             else{
-                p.color = YELLOW;
-                freeParticles.push_back(p);
-                freeParticles[freeParticles.size()].RandomWalk(2, 1);
+                p.color = RED;
+                failedCollisions.push_back(p);
             }
-            //leaks particles
         }
     }
+
+    return failedCollisions;
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -380,9 +381,13 @@ int main(){
         RandomWalkAll(freeParticles);
 
         QuadTree qt = initializeQT();
-        collisionCheck(qt);
+        std::vector<Particle> failedCollisions = collisionCheck(qt);
 
         freeParticles = qt.returnAll(0);
+        for(unsigned int i = 0; i < failedCollisions.size(); i++){
+            freeParticles.push_back(failedCollisions[i]);
+            freeParticles[freeParticles.size()].RandomWalk(2,1);
+        }
         
         BeginDrawing();
         {
