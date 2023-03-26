@@ -158,7 +158,7 @@ public:
         particles.push_back(newParticle);
     }
 
-    std::list<Particle> search(Vector2 center, float radius){
+    std::list<Particle> search(Vector2 center, float radius, bool removeSearched){
         std::list<Particle> result;
 
         // Check if the search area intersects the QuadTree node's boundary
@@ -167,22 +167,43 @@ public:
         }
 
         // If this node has particles, add the ones within the search area to the result list
-        for(const auto& particle : particles){
-            if(CheckCollisionPointCircle(particle.pos, center, radius)){
-                result.push_back(particle);
+        for(unsigned int i = 0; i < particles.size(); i++){
+            if(CheckCollisionPointCircle(particles[i].pos, center, radius)){
+                result.push_back(particles[i]);
+                if(removeSearched){
+                    particles.erase(particles.begin() + i);
+                }
             }
         }
 
         // Recursively search the children nodes
         for(int i = 0; i < 4; i++){
             if(children[i]){
-                auto childResult = children[i]->search(center, radius);
+                auto childResult = children[i]->search(center, radius, removeSearched);
                 result.splice(result.end(), childResult);
             }
         }
 
         return result;
     }
+
+    std::vector<Particle> returnAll(int depth){
+        std::vector<Particle> result;
+
+        if(currentDepth >= depth){
+            result.insert(result.end(), particles.begin(), particles.end());
+        }
+
+        for(int i = 0; i < 4; i++){
+            if(children[i]){
+                auto childResult = children[i]->returnAll(depth);
+                result.insert(result.end(), childResult.begin(), childResult.end());
+            }
+        }
+
+        return result;
+    }
+
 
     int size() const{
         int count = particles.size();
@@ -274,6 +295,19 @@ void primitiveCollisionCheck(){
     }
 }
 
+void collisionCheck(QuadTree qt){
+    std::list<Particle> result;
+
+    for(auto& aggregateParticle : aggregateParticles){
+        result = qt.search(aggregateParticle.pos, collisionThreshold, true);
+
+        for(auto& p : result){
+            p.color = WHITE;
+            aggregateParticles.push_back(p);
+        }
+    }
+}
+
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
 
 void Initialize(){
@@ -303,7 +337,7 @@ void RandomWalkAll(std::vector<Particle>& particles){
 
 void ConcentricCircles(int frameCount){
     if(frameCount / 5 < screenHeight / 2 && frameCount % 500 == 0){
-        std::vector<Particle> fp2 = CreateCircle(40 * (1 + frameCount / 50),RED,{screenWidth/2.0, screenHeight/2.0}, 60 + frameCount / 5);
+        std::vector<Particle> fp2 = CreateCircle(100 * (1 + frameCount / 50),RED,{screenWidth/2.0, screenHeight/2.0}, 50 + frameCount / 5);
         freeParticles.insert(freeParticles.end(), fp2.begin(), fp2.end());
     }
 }
@@ -329,6 +363,9 @@ int main(){
         RandomWalkAll(freeParticles);
 
         QuadTree qt = initializeQT();
+        collisionCheck(qt);
+
+        freeParticles = qt.returnAll(0);
         
         BeginDrawing();
         {
@@ -341,6 +378,8 @@ int main(){
 
         }
         EndDrawing();
+
+        
 
     }
 
