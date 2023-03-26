@@ -98,7 +98,7 @@ public:
         stop();
     }
 
-    void stop(){
+    double stop(){
         auto endPoint = std::chrono::high_resolution_clock::now();
         auto start = std::chrono::time_point_cast<std::chrono::microseconds>(startPoint).time_since_epoch().count();
         auto end = std::chrono::time_point_cast<std::chrono::microseconds>(endPoint).time_since_epoch().count();
@@ -107,6 +107,8 @@ public:
         double ms = duration * 0.001;
 
         std::cout << "ms: " << ms << std::endl;
+
+        return ms;
     }
 };
 
@@ -231,7 +233,7 @@ public:
             DrawPixelV(particle.pos, particle.color);
         }
 
-        DrawRectangleLinesEx(currentSize, 0.7, GREEN);
+        //DrawRectangleLinesEx(currentSize, 0.7, GREEN);
 
         for(int i = 0; i < 4; i++){
             if(children[i]){
@@ -307,6 +309,7 @@ void primitiveCollisionCheck(){
 std::vector<Particle> collisionCheck(QuadTree qt){
     std::list<Particle> result;
     std::vector<Particle> failedCollisions;
+    failedCollisions.reserve(5);
 
     for(auto& aggregateParticle : aggregateParticles){
         result = qt.search(aggregateParticle.pos, collisionThreshold, true);
@@ -363,7 +366,6 @@ void ConcentricCircles(int frameCount){
 }
 
 QuadTree initializeQT(){
-    Timer t;
     QuadTree qt(0, Rectangle{0, 0, screenWidth, screenHeight});
 
     for(const auto& p : freeParticles){
@@ -394,6 +396,7 @@ int main(){
         RandomWalkAll(freeParticles);
 
         QuadTree qt = initializeQT();
+
         std::vector<Particle> failedCollisions = collisionCheck(qt);
 
         freeParticles = qt.returnAll(0);
@@ -401,7 +404,7 @@ int main(){
             freeParticles.push_back(failedCollisions[i]);
             freeParticles[freeParticles.size()].RandomWalk(2,1);
         }
-        
+
         BeginDrawing();
         {
             ClearBackground(BLACK);
@@ -413,10 +416,6 @@ int main(){
             //DrawCircleLines(screenWidth / 2.0f, screenHeight / 2.0f, maxAggregateRadius, ORANGE);
         }
         EndDrawing();
-
-        if(maxTreeDepth == 5 and aggregateParticles.size() > 10000){
-            maxTreeDepth = 6;
-        }
 
         if(frameCount % 5000 == 0){
             stickingProbability -= 0.01;
