@@ -107,10 +107,27 @@ public:
     Rectangle currentSize;
     std::vector<Particle> particles;
     std::array<std::shared_ptr<QuadTree>, 4> children{};
+    std::array<Rectangle, 4> childAreas{};
 
     QuadTree(const int setDepth, const Rectangle& setSize){
         currentDepth = setDepth;
+        resize(setSize);
+    }
+
+    void resize(const Rectangle& setSize){
+        clear(); 
         currentSize = setSize;
+
+        float newWidth = currentSize.width / 2.0f, newHeight = currentSize.height / 2.0f;
+        float x = currentSize.x, y = currentSize.y;
+
+        childAreas = {
+            Rectangle{x + newWidth, y, newWidth, newHeight},
+            Rectangle{x, y, newWidth, newHeight},
+            Rectangle{x, y + newHeight, newWidth, newHeight},
+            Rectangle{x + newWidth, y + newHeight, newWidth, newHeight}
+        };
+
     }
 
     void clear(){
@@ -126,12 +143,13 @@ public:
 
     void insert(const Particle& newParticle){
         for(int i = 0 ; i < 4; i++){
-            if(children[i]){
-                if(CheckCollisionPointRec(newParticle.pos, children[i]->currentSize)){
-                    if(currentDepth + 1 < maxTreeDepth){
-                        children[i]->insert(newParticle);
-                        return;
+            if(CheckCollisionPointRec(newParticle.pos, childAreas[i])){
+                if(currentDepth + 1 < maxTreeDepth){
+                    if(!children[i]){
+                        children[i] = std::make_shared<QuadTree>(currentDepth + 1, childAreas[i]);
                     }
+                    children[i]->insert(newParticle);
+                    return;
                 }
             }
         }
@@ -182,6 +200,8 @@ public:
         for(const auto& particle : particles){
             DrawPixelV(particle.pos, particle.color);
         }
+
+        DrawRectangleLinesEx(currentSize, 1, GREEN);
 
         for(int i = 0; i < 4; i++){
             if(children[i]){
