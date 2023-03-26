@@ -22,7 +22,7 @@ bool Contains(const Rectangle& r1, const Rectangle& r2);
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
 
-constexpr int screenWidth = 2560, screenHeight = 1440, numThreads = 2, maxTreeDepth = 5;
+constexpr int screenWidth = 2560, screenHeight = 1440, numThreads = 2, maxTreeDepth = 6;
 const float collisionThreshold = 3.0f;
 
 const Vector2 particleSize = {2,2};
@@ -201,7 +201,7 @@ public:
             DrawPixelV(particle.pos, particle.color);
         }
 
-        DrawRectangleLinesEx(currentSize, 1, GREEN);
+        //DrawRectangleLinesEx(currentSize, 0.7, GREEN);
 
         for(int i = 0; i < 4; i++){
             if(children[i]){
