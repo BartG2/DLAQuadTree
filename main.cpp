@@ -23,9 +23,7 @@ bool Contains(const Rectangle& r1, const Rectangle& r2);
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
 
 constexpr int screenWidth = 2560, screenHeight = 1440, numThreads = 2, maxTreeDepth = 5;
-const float collisionThreshold = 3.0f;
-
-const Vector2 particleSize = {2,2};
+const float collisionThreshold = 1.1f, minimumStickDistance = 0.9f;
 
 std::mt19937 rng = CreateGeneratorWithTimeSeed();
 
@@ -158,7 +156,7 @@ public:
         particles.emplace_back(newParticle);
     }
 
-    std::list<Particle> search(Vector2 center, float radius, bool removeSearched){
+    std::list<Particle> search(Vector2& center, float radius, bool removeSearched){
         std::list<Particle> result;
 
         // Check if the search area intersects the QuadTree node's boundary
@@ -302,7 +300,11 @@ void collisionCheck(QuadTree qt){
 
         for(auto& p : result){
             p.color = WHITE;
-            aggregateParticles.push_back(p);
+            float dist = vector2distance(p.pos, aggregateParticle.pos);
+            if(dist >= minimumStickDistance){
+                aggregateParticles.push_back(p);
+            }
+            //leaks particles
         }
     }
 }
@@ -313,7 +315,7 @@ void Initialize(){
     InitWindow(screenWidth, screenHeight, "DLA, hopefully");
     SetTargetFPS(100);
 
-    constexpr int startingNumParticles = 100, startingRadius = 100;
+    constexpr int startingNumParticles = 10000, startingRadius = 100;
     const Color startingColor = RED;
     const Vector2 startingCenter = {screenWidth / 2, screenHeight / 2};
 
@@ -335,7 +337,7 @@ void RandomWalkAll(std::vector<Particle>& particles){
 
 void ConcentricCircles(int frameCount){
     if(frameCount / 5 < screenHeight / 2 && frameCount % 500 == 0){
-        std::vector<Particle> fp2 = CreateCircle(200 * (1 + frameCount / 50),RED,{screenWidth/2.0, screenHeight/2.0}, 50 + frameCount / 5);
+        std::vector<Particle> fp2 = CreateCircle(300 * (1 + frameCount / 50),RED,{screenWidth/2.0, screenHeight/2.0}, 50 + frameCount / 5);
         freeParticles.insert(freeParticles.end(), fp2.begin(), fp2.end());
     }
 }
@@ -358,7 +360,7 @@ int main(){
     
     for(int frameCount = 0; !WindowShouldClose(); frameCount++){
 
-        ConcentricCircles(frameCount);
+        //ConcentricCircles(frameCount);
         RandomWalkAll(freeParticles);
 
         QuadTree qt = initializeQT();
