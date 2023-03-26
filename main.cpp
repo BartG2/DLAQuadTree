@@ -74,6 +74,14 @@ public:
         }
     }
 
+    void updatePosition(){
+        pos.x += v.x;
+        pos.y += v.y;
+
+        v.x += a.x;
+        v.y += a.y;
+    }
+
 };
 
 class Timer{
@@ -306,6 +314,11 @@ void collisionCheck(QuadTree qt){
             if(dist >= minimumStickDistance){
                 aggregateParticles.push_back(p);
             }
+            else{
+                p.color = RED;
+                freeParticles.push_back(p);
+                freeParticles[freeParticles.size()].RandomWalk(1, 1);
+            }
             //leaks particles
         }
     }
@@ -374,6 +387,7 @@ int main(){
         {
             ClearBackground(BLACK);
             DrawFPS(10,10);
+            DrawText(TextFormat("%d freeparticles, and %d aggregate particles", freeParticles.size(), aggregateParticles.size()), 10, 30, 10, GREEN);
 
             DrawParticlesVector(aggregateParticles);
 
