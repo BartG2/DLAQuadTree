@@ -365,7 +365,7 @@ void primitiveCollisionCheck(){
 
 std::vector<Particle> collisionCheck(QuadTreeContainer<Particle> qtc){
     std::vector<Particle> failedCollisions;
-    failedCollisions.reserve(2);
+    //failedCollisions.reserve(2);
 
     for(auto& aggregateParticle : aggregateParticles){
         for(auto p : qtc.search(aggregateParticle.pos, collisionThreshold, true)){
@@ -391,7 +391,7 @@ void Initialize(){
     InitWindow(screenWidth, screenHeight, "DLA, hopefully");
     SetTargetFPS(100);
 
-    constexpr int startingNumParticles = 10, startingRadius = 100;
+    constexpr int startingNumParticles = 20000, startingRadius = 150;
     const Color startingColor = RED;
     const Vector2 startingCenter = {screenWidth / 2, screenHeight / 2};
 
@@ -445,19 +445,22 @@ int main(){
     
     for(int frameCount = 0; !WindowShouldClose(); frameCount++){
 
-        ConcentricCircles(frameCount);
+        //ConcentricCircles(frameCount);
         RandomWalkAll(freeParticles);
 
         QuadTreeContainer qtc = initializeQTC();
 
-        //std::vector<Particle> failedCollisions = collisionCheck(qtc);
+        std::vector<Particle> failedCollisions = collisionCheck(qtc);
 
-        //auto n = qt.returnAll(0);
-        /*
-        for(unsigned int i = 0; i < failedCollisions.size(); i++){
-            freeParticles.push_back(failedCollisions[i]);
-            freeParticles[freeParticles.size()].RandomWalk(2,1);
-        }*/
+        int res = freeParticles.size() * 0.9;
+        freeParticles.clear();
+        freeParticles.reserve(res);
+        for(auto p : qtc.allObjects){
+            freeParticles.push_back(p);
+        }
+        for(auto p : failedCollisions){
+            freeParticles.push_back(p);
+        }
 
         BeginDrawing();
         {
