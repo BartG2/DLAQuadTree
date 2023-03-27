@@ -112,23 +112,23 @@ public:
     }
 };
 
+template <typename OBJECT_TYPE>
 class QuadTree{
 public:
-
     int currentDepth;
     Rectangle currentSize;
-    std::vector<Particle> particles;
-    std::array<std::shared_ptr<QuadTree>, 4> children{};
+    std::vector<std::pair<Rectangle, OBJECT_TYPE>> objects;
+    std::array<std::shared_ptr<QuadTree<OBJECT_TYPE>>, 4> children{};
     std::array<Rectangle, 4> childAreas{};
 
-    QuadTree(const int setDepth, const Rectangle& setSize){
+    QuadTree(const Rectangle& size = Rectangle{0, 0, 1, 1}, const int setDepth = 0){
         currentDepth = setDepth;
-        resize(setSize);
+        resize(size);
     }
 
-    void resize(const Rectangle& setSize){
-        clear(); 
-        currentSize = setSize;
+    void resize(const Rectangle& newSize){
+        clear();
+        currentSize = newSize;
 
         float newWidth = currentSize.width / 2.0f, newHeight = currentSize.height / 2.0f;
         float x = currentSize.x, y = currentSize.y;
@@ -138,13 +138,10 @@ public:
             Rectangle{x, y, newWidth, newHeight},
             Rectangle{x, y + newHeight, newWidth, newHeight},
             Rectangle{x + newWidth, y + newHeight, newWidth, newHeight}
-        };
-
+        };        
     }
 
     void clear(){
-        particles.clear();
-
         for(int i = 0; i < 4; i++){
             if(children[i]){
                 children[i]->clear();
@@ -153,42 +150,55 @@ public:
         }
     }
 
-    void insert(const Particle& newParticle){
+    int size() const{
+        int count = objects.size();
+
         for(int i = 0 ; i < 4; i++){
-            if(CheckCollisionPointRec(newParticle.pos, childAreas[i])){
+            if(children[i]){
+                count += children[i]->size();
+            }
+        }
+
+        return count;
+    }
+
+    void insert(const OBJECT_TYPE& newItem, const Rectangle& itemSize){
+        for(int i = 0 ; i < 4; i++){
+            if(CheckCollisionRecs(itemSize, childAreas[i])){
                 if(currentDepth + 1 < maxTreeDepth){
                     if(!children[i]){
-                        children[i] = std::make_shared<QuadTree>(currentDepth + 1, childAreas[i]);
+                        children[i] = std::make_shared<QuadTree<OBJECT_TYPE>>(childAreas[i], currentDepth + 1);
                     }
-                    children[i]->insert(newParticle);
+                    children[i]->insert(newItem, itemSize);
                     return;
                 }
             }
         }
 
         //didn't fit in children, so must go here
-        particles.emplace_back(newParticle);
+        std::pair<Rectangle, OBJECT_TYPE> temp = {itemSize, newItem};
+        objects.push_back(temp);
     }
 
-    std::list<Particle> search(Vector2& center, float radius, bool removeSearched){
-        std::list<Particle> result;
+    std::list<OBJECT_TYPE> search(Vector2& center, float radius, bool removeSearched){
+        std::list<OBJECT_TYPE> result;
 
         // Check if the search area intersects the QuadTree node's boundary
         if(!CheckCollisionCircleRec(center, radius, currentSize)) {
             return result;
         }
 
-        // If this node has particles, add the ones within the search area to the result list
-        for(unsigned int i = 0; i < particles.size(); i++){
-            if(CheckCollisionPointCircle(particles[i].pos, center, radius)){
-                result.push_back(particles[i]);
+        // If this node has objects, add the ones within the search area to the result list
+        for(unsigned int i = 0; i < objects.size(); i++){
+            if(CheckCollisionCircleRec(center, radius, objects[i].first)){
+                result.push_back(objects[i].second);
                 if(removeSearched){
-                    particles.erase(particles.begin() + i);
+                    objects.erase(objects.begin() + i);
                 }
             }
         }
 
-        // Recursively search the children nodes
+        // Recursively search the children
         for(int i = 0; i < 4; i++){
             if(children[i]){
                 auto childResult = children[i]->search(center, radius, removeSearched);
@@ -199,11 +209,11 @@ public:
         return result;
     }
 
-    std::vector<Particle> returnAll(int depth){
-        std::vector<Particle> result;
+    std::vector<OBJECT_TYPE> returnAll(int depth){
+        std::vector<OBJECT_TYPE> result;
 
         if(currentDepth >= depth){
-            result.insert(result.end(), particles.begin(), particles.end());
+            result.insert(result.end(), objects.begin(), objects.end());
         }
 
         for(int i = 0; i < 4; i++){
@@ -216,21 +226,9 @@ public:
         return result;
     }
 
-    int size() const{
-        int count = particles.size();
-
-        for(int i = 0 ; i < 4; i++){
-            if(children[i]){
-                count += children[i]->size();
-            }
-        }
-
-        return count;
-    }
-
     void draw() const{
-        for(const auto& particle : particles){
-            DrawPixelV(particle.pos, particle.color);
+        for(const auto& particle : objects){
+            DrawPixelV(particle.second.pos, particle.second.color);
         }
 
         //DrawRectangleLinesEx(currentSize, 0.7, GREEN);
@@ -242,6 +240,65 @@ public:
         }
     }
 
+};
+
+template <typename OBJECT_TYPE>
+class QuadTreeContainer{
+    using QTContainer = std::list<OBJECT_TYPE>;
+public:
+    QTContainer allObjects;
+    QuadTree<typename QTContainer::iterator> root;
+
+    QuadTreeContainer(const Rectangle& size = Rectangle{0, 0, 0, 0}, const int nDepth = 0) : root(size, nDepth)
+    {}
+
+    void resize(const Rectangle& newSize){
+        root.resize(newSize);
+    }
+
+    int size() const{
+        return allObjects.size();
+    }
+
+    bool empty() const{
+        return allObjects.empty();
+    }
+
+    void clear(){
+        root.clear();
+        allObjects.clear();
+    }
+
+    typename QTContainer::iterator begin(){
+        return allObjects.begin();
+    }
+
+    typename QTContainer::iterator end(){
+        return allObjects.end();
+    }
+
+    typename QTContainer::iterator cbegin(){
+        return allObjects.cbegin();
+    }
+
+    typename QTContainer::iterator cend(){
+        return allObjects.cend();
+    }
+
+    void insert(const OBJECT_TYPE& object, const Rectangle & objectSize){
+        allObjects.push_back(object);
+        root.insert(std::prev(allObjects.end()), objectSize);
+    }
+
+    std::list<typename QTContainer::iterator> search(Vector2& center, float radius, bool removeSearched){
+        return root.search(center, radius, removeSearched);
+    }
+
+    void draw() const{
+        for(const auto& p : allObjects){
+            DrawPixelV(p.pos, p.color);
+        }
+    }
 };
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -306,25 +363,21 @@ void primitiveCollisionCheck(){
     }
 }
 
-std::vector<Particle> collisionCheck(QuadTree qt){
-    std::list<Particle> result;
+std::vector<Particle> collisionCheck(QuadTreeContainer<Particle> qtc){
     std::vector<Particle> failedCollisions;
-    failedCollisions.reserve(5);
+    failedCollisions.reserve(2);
 
     for(auto& aggregateParticle : aggregateParticles){
-        result = qt.search(aggregateParticle.pos, collisionThreshold, true);
-
-        for(auto& p : result){
-            p.color = WHITE;
-            float dist = vector2distance(p.pos, aggregateParticle.pos);
-
-            if(dist >= minimumStickDistance and RandomFloat(0, 1, rng) <= stickingProbability){
-                aggregateParticles.push_back(p);
+        for(auto p : qtc.search(aggregateParticle.pos, collisionThreshold, true)){
+            float dist = vector2distance(p->pos, aggregateParticle.pos);
+            if(dist >= minimumStickDistance){
+                p->color = WHITE;
+                aggregateParticles.push_back(*p);
             }
             else{
-                p.color = RED;
-                p.pos.x = screenWidth;
-                failedCollisions.push_back(p);
+                p->color = RED;
+                p->pos.x = screenWidth;
+                failedCollisions.push_back(*p);
             }
         }
     }
@@ -338,11 +391,11 @@ void Initialize(){
     InitWindow(screenWidth, screenHeight, "DLA, hopefully");
     SetTargetFPS(100);
 
-    constexpr int startingNumParticles = 10000, startingRadius = 100;
+    constexpr int startingNumParticles = 10, startingRadius = 100;
     const Color startingColor = RED;
     const Vector2 startingCenter = {screenWidth / 2, screenHeight / 2};
 
-    //freeParticles = CreateCircle(startingNumParticles, startingColor, startingCenter, startingRadius);
+    freeParticles = CreateCircle(startingNumParticles, startingColor, startingCenter, startingRadius);
     aggregateParticles = {1, Particle({screenWidth / 2.0, screenHeight / 2.0}, WHITE)};
 }
 
@@ -365,14 +418,14 @@ void ConcentricCircles(int frameCount){
     }
 }
 
-QuadTree initializeQT(){
-    QuadTree qt(0, Rectangle{0, 0, screenWidth, screenHeight});
+QuadTreeContainer<Particle> initializeQTC(){
+    QuadTreeContainer<Particle> qtc(Rectangle{0, 0, screenWidth, screenHeight}, 0);
 
     for(const auto& p : freeParticles){
-        qt.insert(p);
+        qtc.insert(p, Rectangle{p.pos.x, p.pos.y, 0, 0});
     }
 
-    return qt;
+    return qtc;
 }
 
 float findMaxAggregateRadius(){
@@ -395,15 +448,16 @@ int main(){
         ConcentricCircles(frameCount);
         RandomWalkAll(freeParticles);
 
-        QuadTree qt = initializeQT();
+        QuadTreeContainer qtc = initializeQTC();
 
-        std::vector<Particle> failedCollisions = collisionCheck(qt);
+        //std::vector<Particle> failedCollisions = collisionCheck(qtc);
 
-        freeParticles = qt.returnAll(0);
+        //auto n = qt.returnAll(0);
+        /*
         for(unsigned int i = 0; i < failedCollisions.size(); i++){
             freeParticles.push_back(failedCollisions[i]);
             freeParticles[freeParticles.size()].RandomWalk(2,1);
-        }
+        }*/
 
         BeginDrawing();
         {
@@ -412,7 +466,7 @@ int main(){
             DrawText(TextFormat("%d freeparticles, and %d aggregate particles\t %d total particles", freeParticles.size(), aggregateParticles.size(), freeParticles.size() + aggregateParticles.size()), 10, 30, 10, GREEN);
 
             DrawParticlesVector(aggregateParticles);
-            qt.draw();
+            qtc.draw();
             //DrawCircleLines(screenWidth / 2.0f, screenHeight / 2.0f, maxAggregateRadius, ORANGE);
         }
         EndDrawing();
