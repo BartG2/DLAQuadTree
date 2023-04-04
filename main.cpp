@@ -15,6 +15,7 @@
 #include <condition_variable>
 #include <memory>
 #include <list>
+#include <fstream>
 
 std::mt19937 CreateGeneratorWithTimeSeed();
 float RandomFloat(float min, float max, std::mt19937& rng);
@@ -22,9 +23,9 @@ bool Contains(const Rectangle& r1, const Rectangle& r2);
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
 
-constexpr int screenWidth = 2560, screenHeight = 1440, numThreads = 2;
+constexpr int screenWidth = 3800, screenHeight = 2100, numThreads = 2;
 int maxTreeDepth = 6, minParticlesToDivide = 500;
-const float collisionThreshold = 1.1f, minimumStickDistance = 1.0f;
+const float collisionThreshold = 1.1f, minimumStickDistance = 0.9f;
 float stickingProbability = 1.0f;
 
 std::mt19937 rng = CreateGeneratorWithTimeSeed();
@@ -315,10 +316,10 @@ std::vector<Particle> collisionCheck(QuadTree qt){
         result = qt.search(aggregateParticle.pos, collisionThreshold, true);
 
         for(auto& p : result){
-            p.color = WHITE;
+            p.color = GREEN;
             float dist = vector2distance(p.pos, aggregateParticle.pos);
 
-            if(dist >= minimumStickDistance and RandomFloat(0, 1, rng) <= stickingProbability){
+            if(dist >= minimumStickDistance){
                 aggregateParticles.push_back(p);
             }
             else{
@@ -330,6 +331,19 @@ std::vector<Particle> collisionCheck(QuadTree qt){
     }
 
     return failedCollisions;
+}
+
+void printCSV(QuadTree qt){
+    std::ofstream outFile;
+    outFile.open("radius_vs_density_table.csv");
+    double density;
+
+    for(int r = 0; r < (int)findMaxAggregateRadius(); r++){
+        density = qt.search({screenWidth / 2.0f, screenHeight / 2.0f}, r, false).size() / 2*PI*r*r;
+        outFile << r << ", " << density << "/n";
+    }
+
+    outFile.close();
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -360,7 +374,7 @@ void RandomWalkAll(std::vector<Particle>& particles){
 
 void ConcentricCircles(int frameCount){
     if(frameCount / 5 < screenHeight / 2 && frameCount % 500 == 0){
-        std::vector<Particle> fp2 = CreateCircle(300 * (1 + frameCount / 50),RED,{screenWidth/2.0, screenHeight/2.0}, 50 + frameCount / 5);
+        std::vector<Particle> fp2 = CreateCircle(200 * (1 + frameCount / 150),RED,{screenWidth/2.0, screenHeight/2.0}, 50 + frameCount / 5);
         freeParticles.insert(freeParticles.end(), fp2.begin(), fp2.end());
     }
 }
@@ -409,7 +423,7 @@ int main(){
         {
             ClearBackground(BLACK);
             DrawFPS(10,10);
-            DrawText(TextFormat("%d freeparticles, and %d aggregate particles\t %d total particles", freeParticles.size(), aggregateParticles.size(), freeParticles.size() + aggregateParticles.size()), 10, 30, 10, GREEN);
+            DrawText(TextFormat("%d freeparticles, and %d aggregate particles\t %d total particles", freeParticles.size(), aggregateParticles.size(), freeParticles.size() + aggregateParticles.size()), 10, 30, 30, GREEN);
 
             DrawParticlesVector(aggregateParticles);
             qt.draw();
@@ -420,6 +434,10 @@ int main(){
         if(frameCount % 5000 == 0){
             stickingProbability -= 0.01;
             std::cout << stickingProbability << std::endl;
+        }
+
+        if(aggregateParticles.size() > freeParticles.size()){
+            printCSV(qt);
         }
 
     }
