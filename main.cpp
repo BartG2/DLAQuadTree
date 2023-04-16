@@ -3,113 +3,146 @@
 #include "raylib.h"
 #include <iostream>
 #include <vector>
-#include <future>
-#include <omp.h>
 #include <array>
-#include <algorithm>
-#include <unordered_set>
-#include <thread>
-#include <functional>
-#include <queue>
-#include <mutex>
-#include <condition_variable>
+#include <fstream>
+#include <cmath>
 #include <memory>
 #include <list>
-#include <fstream>
+
+//---------------------------------------------------------------------------------------------------------------------------------
 
 std::mt19937 CreateGeneratorWithTimeSeed();
 float RandomFloat(float min, float max, std::mt19937& rng);
-bool Contains(const Rectangle& r1, const Rectangle& r2);
+int RandomInt(int min, int max, std::mt19937& rng);
 
-//-------------------------------------------------------------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------------------------------------------
 
-constexpr int screenWidth = 3800, screenHeight = 2100, numThreads = 2;
-int maxTreeDepth = 6, minParticlesToDivide = 500;
-const float collisionThreshold = 1.1f, minimumStickDistance = 0.9f;
-float stickingProbability = 1.0f;
+
+const int screenWidth = 2440, screenHeight = 1368, maxTreeDepth = 5;
 
 std::mt19937 rng = CreateGeneratorWithTimeSeed();
 
-//-------------------------------------------------------------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------------------------------------------
 
-class Particle {
+class Particle{
 public:
     Vector2 pos;
-    Vector2 v;
-    Vector2 a;
     Color color;
-    bool isStuck;
 
-    Particle(Vector2 position, Color col, Vector2 velocity = {0, 0}, Vector2 acceleration = {0, 0}){
+    Particle(Vector2 position, Color col){
         pos = position;
-        v = velocity;
-        a = acceleration;
         color = col;
-        isStuck = false;
+    }
+};
+
+enum CreatureType{
+    GenericPrey,
+    GenericPredator
+};
+
+class Creature{
+public:
+    CreatureType species;
+    double energy;
+    int initialEnergy;
+    double maxSpeed;
+    int initialMaxSpeed;
+    float direction;
+    Vector2 position;
+    Vector2 velocity;
+    float sightRange;
+    double size;
+    double health;
+    double initialHealth;
+    double energyCost;
+    int foodLevel;
+    int waterLevel;
+    unsigned long age;
+    bool alive;
+
+    Creature(CreatureType type, int speed, float range){
+        species = type;
+        maxSpeed = speed;
+        initialMaxSpeed = speed;
+        sightRange = range;
+        position = {RandomFloat(0, screenWidth, rng), RandomFloat(0, screenHeight, rng)};
+        direction = RandomFloat(0, 360, rng);
+        health = 100;
+        initialHealth = 100;
+        size = 1;
+        energy = 100000;
+        initialEnergy = 100000;
+        alive = true;
+        age = 0;
     }
 
-    void RandomWalk(float stepSize, int numSteps) {
-        if(!isStuck){
-            for (int i = 0; i < numSteps; i++) {
-                float dx = RandomFloat(-1, 1, rng);
-                float dy = RandomFloat(-1, 1, rng);
+    double calculateEnergyCost(double maxSpeed, int sightRange, int size){
+        static constexpr double sightCost = 1;
+        return 100*size*size*size + maxSpeed*maxSpeed + sightCost*sightRange;
+    }
 
-                float newX = pos.x + dx * stepSize;
-                float newY = pos.y + dy * stepSize;
-
-                // Check if particle is out of bounds and correct position
-                if (newX < 0) {
-                    newX = 0;
-                }
-                else if (newX > screenWidth) {
-                    newX = screenWidth;
-                }
-                if (newY < 0) {
-                    newY = 0;
-                }
-                else if (newY > screenHeight) {
-                    newY = screenHeight;
-                }
-
-                pos.x = newX;
-                pos.y = newY;
-            }
+    void move(){
+        float newX = position.x + maxSpeed*cos(direction);
+        float newY = position.y + maxSpeed*sin(direction);
+        if(newX <= screenWidth and newX >= 0 and newY >= 0 and newY <= screenHeight){
+            position = {newX, newY};
+        }
+        else{
+            direction -= 180;
         }
     }
 
-    void updatePosition(){
-        pos.x += v.x;
-        pos.y += v.y;
+    void incrementalRandomWalk(float dv){
+        float dx, dy;  
 
-        v.x += a.x;
-        v.y += a.y;
+        do
+        {
+            float dx = RandomFloat(-dv, dv, rng);
+            float dy = RandomFloat(-dv, dv, rng);
+        } while ((position.x > screenWidth and dx > 0) or (position.x < 0 and dx < 0) or (position.y > screenHeight and dy > 0) or (position.y < screenHeight and dy < 0));
+        
+        velocity = {dx, dy};
     }
 
-};
+    void shiftDirectionRandomly(float magnitude){
+        float d = RandomFloat(-magnitude, magnitude, rng);
 
-class Timer{
-public:
-    std::chrono::time_point<std::chrono::high_resolution_clock> startPoint;
+        direction += d;
+        if(direction > 360){
+            direction -=  360;
+        }
+        else if(direction < 0){
+            direction += 360;
+        }
 
-    Timer(){
-        startPoint = std::chrono::high_resolution_clock::now();
+
     }
 
-    ~Timer(){
-        stop();
+    void update(){
+        age++;
+
+        /*double ageSpeedDecayFactor = 1 / 1000000.0;
+        double speedPeakAge = 500;
+        double ds = double(initialMaxSpeed) - ageSpeedDecayFactor*(age-speedPeakAge)*(age-speedPeakAge);
+        if(ds >= 0){
+            maxSpeed = ds;
+        }
+        std::cout << age << ", " << maxSpeed << std::endl;*/
+
+        double energyCost = calculateEnergyCost(maxSpeed, sightRange, size);
+        if(energy - energyCost > 0){
+            energy -= energyCost;
+        }
+        else{
+            die();
+        }
+
+        move();
+        shiftDirectionRandomly(0.4);
     }
 
-    double stop(){
-        auto endPoint = std::chrono::high_resolution_clock::now();
-        auto start = std::chrono::time_point_cast<std::chrono::microseconds>(startPoint).time_since_epoch().count();
-        auto end = std::chrono::time_point_cast<std::chrono::microseconds>(endPoint).time_since_epoch().count();
-
-        auto duration = end - start;
-        double ms = duration * 0.001;
-
-        std::cout << "ms: " << ms << std::endl;
-
-        return ms;
+    void die(){
+        alive = false;
     }
 };
 
@@ -245,11 +278,7 @@ public:
 
 };
 
-//-------------------------------------------------------------------------------------------------------------------------------------------------------
-
-std::vector<Particle> freeParticles, aggregateParticles;
-
-//-------------------------------------------------------------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------------------------------------------
 
 std::mt19937 CreateGeneratorWithTimeSeed() {
     // Get the current time in nanoseconds
@@ -266,178 +295,116 @@ float RandomFloat(float min, float max, std::mt19937& rng) {
     return dist(rng);
 }
 
-float vector2distance(Vector2 v1, Vector2 v2) {
-    float dx = v2.x - v1.x;
-    float dy = v2.y - v1.y;
-    return std::sqrt(dx * dx + dy * dy);
+int RandomInt(int min, int max, std::mt19937& rng){
+    std::uniform_int_distribution<int> dist(min, max);
+    return dist(rng);
 }
 
-std::vector<Particle> CreateCircle(int numParticles, Color col, Vector2 center, float radius){
-    float degreeIncrement = 360.0f/(float)numParticles;
-    std::vector<Particle> particles;
 
-    for(float i = 0; i < 360; i += degreeIncrement){
-        float x = radius * cos(i) + center.x;
-        float y = radius * sin(i) + center.y;
-        Particle p({x, y}, col);
-        particles.push_back(p);
-    }
+//---------------------------------------------------------------------------------------------------------------------------------
 
-    return particles;
-}
-
-bool vectorsEqual(Vector2 v1, Vector2 v2){
-    if(v1.x == v2.x && v1.y == v2.y){
-        return true;
-    }
-    else{
-        return false;
-    }
-}
-
-void primitiveCollisionCheck(){
-    for(unsigned int i = 0; i < aggregateParticles.size(); i++){
-        for(unsigned int j = 0; j < freeParticles.size(); j++){
-            if(CheckCollisionPointCircle(freeParticles[j].pos, aggregateParticles[i].pos, collisionThreshold)){
-                freeParticles[j].color = WHITE;
-                aggregateParticles.push_back(freeParticles[j]);
-                freeParticles.erase(freeParticles.begin() + j);
-            }
-        }
-    }
-}
-
-std::vector<Particle> collisionCheck(QuadTree qt){
-    std::list<Particle> result;
-    std::vector<Particle> failedCollisions;
-    failedCollisions.reserve(5);
-
-    for(auto& aggregateParticle : aggregateParticles){
-        result = qt.search(aggregateParticle.pos, collisionThreshold, true);
-
-        for(auto& p : result){
-            p.color = GREEN;
-            float dist = vector2distance(p.pos, aggregateParticle.pos);
-
-            if(dist >= minimumStickDistance){
-                aggregateParticles.push_back(p);
-            }
-            else{
-                p.color = RED;
-                p.pos.x = screenWidth;
-                failedCollisions.push_back(p);
-            }
-        }
-    }
-
-    return failedCollisions;
-}
-
-void printCSV(QuadTree qt){
-    std::ofstream outFile;
-    outFile.open("radius_vs_density_table.csv");
-    double density;
-
-    for(int r = 0; r < (int)findMaxAggregateRadius(); r++){
-        density = qt.search({screenWidth / 2.0f, screenHeight / 2.0f}, r, false).size() / 2*PI*r*r;
-        outFile << r << ", " << density << "/n";
-    }
-
-    outFile.close();
-}
-
-//-------------------------------------------------------------------------------------------------------------------------------------------------------
-
-void Initialize(){
-    InitWindow(screenWidth, screenHeight, "DLA, hopefully");
+void initialize(){
+    InitWindow(screenWidth, screenHeight, "Predator and Prey Sim");
     SetTargetFPS(100);
-
-    constexpr int startingNumParticles = 10000, startingRadius = 100;
-    const Color startingColor = RED;
-    const Vector2 startingCenter = {screenWidth / 2, screenHeight / 2};
-
-    //freeParticles = CreateCircle(startingNumParticles, startingColor, startingCenter, startingRadius);
-    aggregateParticles = {1, Particle({screenWidth / 2.0, screenHeight / 2.0}, WHITE)};
 }
 
-void DrawParticlesVector(const std::vector<Particle>& particles){
-    for(unsigned int i = 0; i < particles.size(); i++){
-        DrawPixelV(particles[i].pos, particles[i].color);
-    }
+void drawBackground(){
+    ClearBackground(RAYWHITE);
+    DrawFPS(screenWidth - 40, 20);
 }
 
-void RandomWalkAll(std::vector<Particle>& particles){
-    for(auto& p : particles){
-        p.RandomWalk(2, 1);
-    }
-}
+void run(){
+    initialize();
 
-void ConcentricCircles(int frameCount){
-    if(frameCount / 5 < screenHeight / 2 && frameCount % 500 == 0){
-        std::vector<Particle> fp2 = CreateCircle(200 * (1 + frameCount / 150),RED,{screenWidth/2.0, screenHeight/2.0}, 50 + frameCount / 5);
-        freeParticles.insert(freeParticles.end(), fp2.begin(), fp2.end());
-    }
-}
+    std::ofstream outFile;
+    outFile.open("data.csv");
+    outFile.close();
 
-QuadTree initializeQT(){
-    QuadTree qt(0, Rectangle{0, 0, screenWidth, screenHeight});
-
-    for(const auto& p : freeParticles){
-        qt.insert(p);
-    }
-
-    return qt;
-}
-
-float findMaxAggregateRadius(){
-    float maxAggregateRadius = 0;
-    for(auto& p : aggregateParticles){
-        if(vector2distance(p.pos, {screenWidth/2.0f, screenHeight/2.0f}) > maxAggregateRadius){
-            maxAggregateRadius = vector2distance(p.pos, {screenWidth/2.0f, screenHeight/2.0f});
-        }
-    }
-    return maxAggregateRadius;
-}
-
-//-------------------------------------------------------------------------------------------------------------------------------------------------------
-
-int main(){
-    Initialize();
-    
-    for(int frameCount = 0; !WindowShouldClose(); frameCount++){
-
-        ConcentricCircles(frameCount);
-        RandomWalkAll(freeParticles);
-
-        QuadTree qt = initializeQT();
-
-        std::vector<Particle> failedCollisions = collisionCheck(qt);
-
-        freeParticles = qt.returnAll(0);
-        for(unsigned int i = 0; i < failedCollisions.size(); i++){
-            freeParticles.push_back(failedCollisions[i]);
-            freeParticles[freeParticles.size()].RandomWalk(2,1);
-        }
+    for(int frame = 0; !WindowShouldClose(); frame++) {
 
         BeginDrawing();
-        {
-            ClearBackground(BLACK);
-            DrawFPS(10,10);
-            DrawText(TextFormat("%d freeparticles, and %d aggregate particles\t %d total particles", freeParticles.size(), aggregateParticles.size(), freeParticles.size() + aggregateParticles.size()), 10, 30, 30, GREEN);
 
-            DrawParticlesVector(aggregateParticles);
-            qt.draw();
-            //DrawCircleLines(screenWidth / 2.0f, screenHeight / 2.0f, maxAggregateRadius, ORANGE);
+        drawBackground();
+
+        EndDrawing();
+    }
+
+    CloseWindow();
+}
+
+void drawHealthBar(Creature& creature, int barWidth, int barHeight, int verticalOffset, Color fullColor, Color emptyColor, int barType){
+    double interbarDistance = 8;
+
+    //energy bar
+    if(barType == 1){
+        DrawRectangle(creature.position.x - barWidth / 2, creature.position.y - verticalOffset, barWidth*(creature.energy/creature.initialEnergy), barHeight, fullColor);
+        DrawRectangle(creature.position.x - barWidth / 2 + barWidth*(creature.energy/creature.initialEnergy), creature.position.y - verticalOffset, barWidth*(creature.initialEnergy - creature.energy) / creature.initialEnergy, barHeight,  emptyColor);
+    }
+    //health bar
+    else if(barType == 2){
+        DrawRectangle(creature.position.x - barWidth / 2, creature.position.y - verticalOffset - interbarDistance, barWidth*(creature.health/creature.initialHealth), barHeight, fullColor);
+        DrawRectangle(creature.position.x - barWidth / 2 + barWidth*(creature.health/creature.initialHealth), creature.position.y - verticalOffset - interbarDistance, barWidth*(creature.initialHealth - creature.health) / creature.initialHealth, barHeight,  emptyColor);
+    }
+}
+
+std::vector<Creature> initializeRandomCreatures(int number, CreatureType type){
+    std::vector<Creature> creatures(number, {type, 1, 2});
+    for(int i = 0; i < number; i++){
+
+    }
+}
+
+//---------------------------------------------------------------------------------------------------------------------------------
+
+int main() {
+    initialize();
+
+    Creature adam(GenericPredator, 1, 1);
+
+    int numPredators = 10, numPrey = 20;
+
+    std::vector<Creature> predators(numPredators, {GenericPredator, 1, 2});;
+    std::vector<Creature> prey(numPrey, {GenericPrey, 2, 1});
+    std::vector<Particle> predatorLocations;
+    std::vector<Particle> preyLocations;
+    std::cout << predators.size() << std::endl;
+
+    for(int frame = 0; !WindowShouldClose(); frame++){
+
+        BeginDrawing();
+
+        drawBackground();
+
+        for(int i = 0 ; i < numPredators; i++){
+            drawHealthBar(predators[i], 40, 3, 20, GREEN, RED, 1);
+            drawHealthBar(predators[i], 40, 3, 20, BLUE, ORANGE, 2);
+            DrawCircleV(predators[i].position, 10, BLUE);
         }
+
+        for(int i = 0; i < numPrey; i++){
+            drawHealthBar(prey[i], 40, 3, 20, GREEN, RED, 1);
+            drawHealthBar(prey[i], 40, 3, 20, BLUE, ORANGE, 2);
+            DrawCircleV(prey[i].position, 10, GREEN);
+        }
+
+        /*if(adam.alive){
+            drawHealthBar(adam, 40, 3, 20, GREEN, RED, 1);
+            drawHealthBar(adam, 40, 3, 20, BLUE, ORANGE, 2);
+            DrawCircleV(adam.position, 10, GREEN);
+            adam.update();
+        }
+        else{
+            //std::cout << "dead" << std::endl;
+            DrawCircleV(adam.position, 10, RED);
+        }*/
+
         EndDrawing();
 
-        if(frameCount % 5000 == 0){
-            stickingProbability -= 0.01;
-            std::cout << stickingProbability << std::endl;
+        for(int i = 0; i < numPredators; i++){
+            predators[i].update();
         }
-
-        if(aggregateParticles.size() > freeParticles.size()){
-            printCSV(qt);
+        for(int i = 0; i < numPrey; i++){
+            prey[i].update();
         }
 
     }
