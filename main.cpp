@@ -443,11 +443,10 @@ int main(){
         std::vector<Particle> failedCollisions = collisionCheck(qt);
 
         freeParticles = qt.returnAll(0);
-        for(unsigned int i = 0; i < failedCollisions.size(); i++){
-            failedCollisions[i].pos.x = screenWidth / 2.0 + 2 * RandomFloat(findMaxAggregateRadius() + 10, findMaxAggregateRadius() + 20, rng);
-            freeParticles.push_back(failedCollisions[i]);
-            freeParticles[freeParticles.size()].RandomWalk(2,1);
-        }
+
+        std::vector<Particle> failureCircle = CreateCircle(failedCollisions.size(), BLUE, {screenWidth / 2, screenHeight / 2}, 3*findMaxAggregateRadius());
+        freeParticles.insert(freeParticles.begin(), failureCircle.begin(), failureCircle.end());
+
 
         BeginDrawing();
         {
