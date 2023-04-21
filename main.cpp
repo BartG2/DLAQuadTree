@@ -319,7 +319,7 @@ std::vector<Particle> collisionCheck(QuadTree qt){
             p.color = GREEN;
             float dist = vector2distance(p.pos, aggregateParticle.pos);
 
-            if(dist >= minimumStickDistance){
+            if(dist >= minimumStickDistance and RandomFloat(0,1,rng) <= stickingProbability){
                 aggregateParticles.push_back(p);
             }
             else{
@@ -405,14 +405,37 @@ void printCSV(){
 
     outFile.close();
 }
+
+void printCSVBackup(){
+    std::ofstream outFile;
+    outFile.open("radius_vs_density_table_backup.csv");
+    double density;
+
+    QuadTree qt(0, Rectangle{0, 0, screenWidth, screenHeight});
+    for(const auto& p : aggregateParticles){
+        qt.insert(p);
+    }
+
+    for(double r = 0.0; r < (double)findMaxAggregateRadius(); r+= 1.0){
+        const std::list<Particle> searched = qt.search({screenWidth / 2.0f, screenHeight / 2.0f}, r, false);
+        int size = searched.size();
+        density = double(size) / double(2.0*PI*r*r);
+        //density = qt.search({screenWidth / 2.0f, screenHeight / 2.0f}, r, false).size() / 2*PI*r*r;
+        outFile << r << ", " << size << ", " << 2.0*PI*r*r << ", " << density << "\n";
+    }
+
+    outFile.close();
+}
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
 
 int main(){
     Initialize();
+    std::vector<Particle> fp2 = CreateCircle(10000, RED, {screenWidth / 2.0, screenHeight / 2.0}, 50);
+    freeParticles.insert(freeParticles.end(), fp2.begin(), fp2.end());
     
     for(int frameCount = 0; !WindowShouldClose(); frameCount++){
 
-        ConcentricCircles(frameCount);
+        //ConcentricCircles(frameCount);
         RandomWalkAll(freeParticles);
 
         QuadTree qt = initializeQT();
@@ -433,22 +456,19 @@ int main(){
 
             DrawParticlesVector(aggregateParticles);
             qt.draw();
-            //DrawCircleLines(screenWidth / 2.0f, screenHeight / 2.0f, maxAggregateRadius, ORANGE);
         }
         EndDrawing();
 
         if(frameCount % 5000 == 0){
-            if(aggregateParticles.size() * 1.5 > freeParticles.size() and findMaxAggregateRadius() < screenHeight / 2.0){
-                CreateCircle(aggregateParticles.size()*2, RED, {screenWidth / 2.0f, screenHeight / 2.0f}, findMaxAggregateRadius() * 1.5);
-            }
+            printCSVBackup();
             //stickingProbability -= 0.01;
             //std::cout << stickingProbability << std::endl;
         }
 
-        if(aggregateParticles.size() > 10){
-            printCSV();
+        if(aggregateParticles.size() > 0.25 * freeParticles.size() and findMaxAggregateRadius() < screenHeight / 2.0){
+            std::vector<Particle> fp2 = CreateCircle(aggregateParticles.size()*2, RED, {screenWidth / 2.0f, screenHeight / 2.0f}, findMaxAggregateRadius() * 2);
+            freeParticles.insert(freeParticles.end(), fp2.begin(), fp2.end());
         }
-
     }
 
     return 0;
