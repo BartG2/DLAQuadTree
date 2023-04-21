@@ -385,10 +385,15 @@ float findMaxAggregateRadius(){
     return maxAggregateRadius;
 }
 
-void printCSV(QuadTree qt){
+void printCSV(){
     std::ofstream outFile;
     outFile.open("radius_vs_density_table.csv");
     double density;
+
+    QuadTree qt(0, Rectangle{0, 0, screenWidth, screenHeight});
+    for(const auto& p : aggregateParticles){
+        qt.insert(p);
+    }
 
     for(double r = 0.0; r < (double)findMaxAggregateRadius(); r+= 1.0){
         const std::list<Particle> searched = qt.search({screenWidth / 2.0f, screenHeight / 2.0f}, r, false);
@@ -441,7 +446,7 @@ int main(){
         }
 
         if(aggregateParticles.size() > 10){
-            printCSV(qt);
+            printCSV();
         }
 
     }
