@@ -311,7 +311,7 @@ void primitiveCollisionCheck(){
 std::vector<Particle> collisionCheck(QuadTree qt){
     std::list<Particle> result;
     std::vector<Particle> failedCollisions;
-    failedCollisions.reserve(5);
+    //failedCollisions.reserve(5);
 
     for(auto& aggregateParticle : aggregateParticles){
         result = qt.search(aggregateParticle.pos, collisionThreshold, true);
@@ -434,8 +434,9 @@ void printCSVBackup(){
 
 int main(){
     Initialize();
-    std::vector<Particle> fp2 = CreateCircle(10000, RED, {screenWidth / 2.0, screenHeight / 2.0}, 50);
+    std::vector<Particle> fp2 = CreateCircle(10000, RED, {screenWidth / 2.0, screenHeight / 2.0}, 100);
     freeParticles.insert(freeParticles.end(), fp2.begin(), fp2.end());
+    std::vector<Particle> failedCollisions;
     
     for(int frameCount = 0; !WindowShouldClose(); frameCount++){
 
@@ -444,12 +445,17 @@ int main(){
 
         QuadTree qt = initializeQT();
 
-        std::vector<Particle> failedCollisions = collisionCheck(qt);
-
+        //std::vector<Particle> failedCollisions = collisionCheck(qt);
+        auto a = collisionCheck(qt);
+        failedCollisions.insert(failedCollisions.begin(), a.begin(), a.end());
         freeParticles = qt.returnAll(0);
 
-        std::vector<Particle> failureCircle = CreateCircle(failedCollisions.size(), BLUE, {screenWidth / 2, screenHeight / 2}, 3*findMaxAggregateRadius());
-        freeParticles.insert(freeParticles.begin(), failureCircle.begin(), failureCircle.end());
+        if(failedCollisions.size() >= 360){
+            std::vector<Particle> failureCircle = CreateCircle(failedCollisions.size(), BLUE, {screenWidth / 2, screenHeight / 2}, (3*findMaxAggregateRadius() > 100) ? 3*findMaxAggregateRadius() : 100);
+            freeParticles.insert(freeParticles.begin(), failureCircle.begin(), failureCircle.end());
+            failedCollisions.clear();
+            failedCollisions.shrink_to_fit();
+        }
 
 
         BeginDrawing();
