@@ -17,6 +17,7 @@
 #include <list>
 #include <fstream>
 #include <string>
+#include <cstdlib>
 
 std::mt19937 CreateGeneratorWithTimeSeed();
 float RandomFloat(float min, float max, std::mt19937& rng);
@@ -410,8 +411,10 @@ void printCSV(){
 
 void printCSVBackup(){
     std::ofstream outFile;
-    std::string name = "radd";
-    outFile.open(name.append(".csv"));
+    std::string folderName = "csv_folder/";
+    std::string fileName = "data_at_" + std::to_string(stickingProbability) + ".csv";
+    std::string fullPath = folderName + fileName;
+    outFile.open(fullPath);
     outFile << "Sticking probability: " << stickingProbability << "\n";
     double density;
 
@@ -424,15 +427,19 @@ void printCSVBackup(){
         const std::list<Particle> searched = qt.search({screenWidth / 2.0f, screenHeight / 2.0f}, r, false);
         int size = searched.size();
         density = double(size) / double(2.0*PI*r*r);
-        //density = qt.search({screenWidth / 2.0f, screenHeight / 2.0f}, r, false).size() / 2*PI*r*r;
         outFile << r << ", " << size << ", " << 2.0*PI*r*r << ", " << density << "\n";
     }
 
     outFile.close();
 }
+
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
 
-int main(){
+int main(int argc, char*argv[]){
+    double inputStickingProbability = std::strtod(argv[1], nullptr);
+    stickingProbability = inputStickingProbability;
+    std::cout << inputStickingProbability << std::endl;
+
     Initialize();
     std::vector<Particle> fp2 = CreateCircle(10000, RED, {screenWidth / 2.0, screenHeight / 2.0}, 100);
     freeParticles.insert(freeParticles.end(), fp2.begin(), fp2.end());
@@ -462,7 +469,7 @@ int main(){
         {
             ClearBackground(BLACK);
             DrawFPS(10,10);
-            DrawText(TextFormat("%d freeparticles, and %d aggregate particles\t %d total particles", freeParticles.size(), aggregateParticles.size(), freeParticles.size() + aggregateParticles.size()), 10, 30, 30, GREEN);
+            DrawText(TextFormat("%d freeparticles, and %d aggregate particles\t %d total particles\t %lf", freeParticles.size(), aggregateParticles.size(), freeParticles.size() + aggregateParticles.size(), inputStickingProbability), 10, 30, 30, GREEN);
 
             DrawParticlesVector(aggregateParticles);
             qt.draw();
@@ -479,7 +486,18 @@ int main(){
             std::vector<Particle> fp2 = CreateCircle(aggregateParticles.size()*2, RED, {screenWidth / 2.0f, screenHeight / 2.0f}, findMaxAggregateRadius() * 2);
             freeParticles.insert(freeParticles.end(), fp2.begin(), fp2.end());
         }
+
+        if(findMaxAggregateRadius() >= 0.9 * screenHeight / 2){
+            break;
+        }
     }
 
+    double decrement = 0.1;
+    if(inputStickingProbability - decrement > 0 and inputStickingProbability <= 1){
+        std::string nextStick = std::to_string(inputStickingProbability -= decrement);
+        std::string command = "test.exe " + nextStick;
+        CloseWindow();
+        system(command.c_str());
+    }
     return 0;
 }
