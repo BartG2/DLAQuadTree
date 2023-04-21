@@ -16,6 +16,7 @@
 #include <memory>
 #include <list>
 #include <fstream>
+#include <string>
 
 std::mt19937 CreateGeneratorWithTimeSeed();
 float RandomFloat(float min, float max, std::mt19937& rng);
@@ -387,7 +388,8 @@ float findMaxAggregateRadius(){
 
 void printCSV(){
     std::ofstream outFile;
-    outFile.open("radius_vs_density_table.csv");
+    std::string name = "radVsDensity";
+    outFile.open(name.append(".csv"));
     double density;
 
     QuadTree qt(0, Rectangle{0, 0, screenWidth, screenHeight});
@@ -408,7 +410,9 @@ void printCSV(){
 
 void printCSVBackup(){
     std::ofstream outFile;
-    outFile.open("radius_vs_density_table_backup.csv");
+    std::string name = "radd";
+    outFile.open(name.append(".csv"));
+    outFile << "Sticking probability: " << stickingProbability << "\n";
     double density;
 
     QuadTree qt(0, Rectangle{0, 0, screenWidth, screenHeight});
@@ -459,7 +463,7 @@ int main(){
         }
         EndDrawing();
 
-        if(frameCount % 5000 == 0){
+        if(frameCount % 500 == 0){
             printCSVBackup();
             //stickingProbability -= 0.01;
             //std::cout << stickingProbability << std::endl;
